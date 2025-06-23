@@ -2753,6 +2753,21 @@ extension NextLevel {
                     }
                 }
             })
+        } else if self._recording && session.isAudioSetup && session.currentClipHasStarted {
+            self.beginRecordingNewClipIfNecessary()
+
+            session.appendAudio(withSampleBuffer: sampleBuffer, completionHandler: { (success: Bool) -> Void in
+                if success {
+                    DispatchQueue.main.async {
+                        self.videoDelegate?.nextLevel(self, didAppendAudioSampleBuffer: sampleBuffer, inSession: session)
+                    }
+                    self.checkSessionDuration()
+                } else {
+                    DispatchQueue.main.async {
+                        self.videoDelegate?.nextLevel(self, didSkipAudioSampleBuffer: sampleBuffer, inSession: session)
+                    }
+                }
+            })
         }
     }
 
@@ -2812,6 +2827,11 @@ extension NextLevel: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudi
                 break
             default:
                 break
+            }
+        } else if let audioOutput = self._audioOutput {
+            self._lastAudioFrame = sampleBuffer
+            if let session = self._recordingSession {
+                self.handleAudioOutput(sampleBuffer: sampleBuffer, session: session)
             }
         }
     }
