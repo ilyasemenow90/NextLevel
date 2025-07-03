@@ -584,7 +584,7 @@ extension NextLevel {
     /// Starts the current recording session.
     ///
     /// - Throws: 'NextLevelError.authorization' when permissions are not authorized, 'NextLevelError.started' when the session has already started.
-    public func start() throws {
+    public func start(completion: (() -> Void)? = nil) throws {
         guard self.authorizationStatusForCurrentCaptureMode() == .authorized else {
             throw NextLevelError.authorization
         }
@@ -598,12 +598,12 @@ extension NextLevel {
             guard self._captureSession == nil else {
                 throw NextLevelError.started
             }
-            setupAVSession()
+            setupAVSession(completion: completion)
         }
     }
 
     /// Stops the current recording session.
-    public func stop() {
+    public func stop(completion: (() -> Void)? = nil) {
         if let session = self._captureSession {
             self.executeClosureAsyncOnSessionQueueIfNecessary {
                 if session.isRunning == true {
@@ -618,7 +618,10 @@ extension NextLevel {
                 self._recordingSession = nil
                 self._captureSession = nil
                 self._currentDevice = nil
+                completion?()
             }
+        } else {
+            completion?()
         }
 
         #if USE_ARKIT
@@ -632,7 +635,7 @@ extension NextLevel {
         #endif
     }
 
-    internal func setupAVSession() {
+    internal func setupAVSession(completion: (() -> Void)? = nil) {
         // Note: use nextLevelSessionDidStart to ensure a device and session are available for configuration or format changes
         self.executeClosureAsyncOnSessionQueueIfNecessary {
             // setup AV capture sesssion
@@ -663,6 +666,8 @@ extension NextLevel {
                     // nextLevelSessionDidStart is called from AVFoundation
                 }
             }
+
+            completion?()
         }
     }
 
@@ -2465,11 +2470,14 @@ extension NextLevel {
     }
 
     /// Initiates video recording, managed as a clip within the 'NextLevelSession'
-    public func record() {
+    public func record(completionHandler: ((Bool) -> Void)? = nil) {
         self.executeClosureSyncOnSessionQueueIfNecessary {
             self._recording = true
             if let _ = self._recordingSession {
                 self.beginRecordingNewClipIfNecessary()
+                completionHandler?(true)
+            } else {
+                completionHandler?(false)
             }
         }
     }
